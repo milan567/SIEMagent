@@ -144,6 +144,7 @@ if __name__ == '__main__':
 
     types = keys['types'].split(',')
     files = keys['filePaths'].split(',')
+    enabled = keys['enabled']
     last_lines = np.zeros(len(files), dtype=object)
     a = Agent()
     while True:
@@ -151,8 +152,9 @@ if __name__ == '__main__':
         for file in files:
             last_lines[i] = a.send(file, types, last_lines[i])
             i = i + 1
-        if platform.system() == "Windows":
-            fun()
-        else:
-            print("System is Linux")
+        if enabled == "TRUE":
+            if platform.system() == "Windows":
+                fun()
+            else:
+                print("System is Linux")
         time.sleep(10)
