@@ -1,14 +1,16 @@
-import io
 import numpy as np
-import time
 import requests
-from datetime import datetime
 import urllib
-import json
 import ssl
-import httplib2
+import socket
+import win32evtlog# requires pywin32 pre-installed
+import datetime, time
+from datetime import datetime
+import logging
+import platform
 
-
+logging.basicConfig(filename="OperatingSystem.log", level=logging.DEBUG,
+                        format="%(id)s|%(asctime)s|%(ip)s|%(host)s|%(facility)s|%(levelname)s|%(tag)s|%(message)s")
 
 class Log:
 
@@ -41,8 +43,6 @@ class Agent:
         data['host'] = log.host.strip()
         data['facility'] = log.ip.strip()
         data['tag'] = log.tag.strip()
-        b = json.dumps(data).encode('utf-8')
-        print(b)
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.load_verify_locations(capath='C:/Users/milan/Desktop/Salic/Bezbjednost/BS')
         d = urllib.parse.urlencode(data).encode("UTF-8")
@@ -61,10 +61,8 @@ class Agent:
                 elements = line.split("|")
                 print(elements[5])
                 if elements[5] in types:
-                    print(elements[1][:19])
                     datetime_object = datetime.strptime(elements[1][:19], "%Y-%m-%d %H:%M:%S")
-                    print(datetime_object)
-                    l = Log(elements[5],elements[7],datetime_object,elements[2],elements[3]
+                    l = Log(elements[5],elements[7],datetime_object,socket.gethostbyname(socket.gethostname()),elements[3]
                             ,elements[4],elements[6])
                     self.send_post_request(l)
                 else:
@@ -75,19 +73,62 @@ class Agent:
 
 
 
-if __name__ == '__main__':
 
+
+
+
+def fun():
+    server = 'localhost' # name of the target computer to get event logs
+    logtype = 'System' # 'Application' # 'Security'
+    flags = win32evtlog.EVENTLOG_BACKWARDS_READ|win32evtlog.EVENTLOG_SEQUENTIAL_READ
+    #total = win32evtlog.GetNumberOfEventLogRecords(hand)
+    hand = win32evtlog.OpenEventLog(server,logtype)
+
+    begin_sec = time.time()
+    begin_time = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(begin_sec))
+
+    time.sleep(30)
+
+    events = win32evtlog.ReadEventLog(hand, flags,0)
+    if events:
+        for event in events:
+            datetime_object = datetime.strptime(str(event.TimeGenerated), '%Y-%m-%d %H:%M:%S')
+            seconds = time.mktime(datetime_object.timetuple())
+
+            if(begin_sec<=seconds):
+                writeLog(event.EventType, event.TimeGenerated, event.SourceName)
+
+
+def writeLog(type,date,name):
+    request_url = "https://localhost:8443/agent/saveLog";
+    data = {}
+    data['type'] = getType(type).strip()
+    data['description'] = name.strip()
+    data['date'] = str(date).strip()
+    data['ip'] = socket.gethostbyname(socket.gethostname())
+    data['host'] = socket.gethostname().strip()
+    data['facility'] = "tinyproxy[9456]".strip()
+    data['tag'] = "daemon".strip()
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_verify_locations(capath='C:/Users/milan/Desktop/Salic/Bezbjednost/BS')
+    d = urllib.parse.urlencode(data).encode("UTF-8")
+    urllib.request.urlopen(request_url, data=d, context=context)
+
+def getType(a):
+    if(a==2):
+        return "WARNING"
+    elif(a==4):
+        return "INFO"
+    elif(a==3):
+        return "CRITICAL"
+    else:
+        return "ERROR"
+
+
+
+if __name__ == '__main__':
     separator = "="
     keys = {}
-    '''
-        sc = pyspark.SparkContext()
-        sc.setSystemProperty("javax.net.ssl.keyStore" , "C:\\Users\\milan\\Desktop\\Salic\\Bezbjednost\\BS\\keystore.jks")
-        sc.setSystemProperty("javax.net.ssl.keyStorePassword", "admin1234");
-        sc.setSystemProperty("javax.net.ssl.trustStore", "C:\\Users\\milan\\Desktop\\Salic\\Bezbjednost\\BS\\myTrustStore.jts");
-        sc.setSystemProperty("javax.net.ssl.trustStorePassword", "admin1234");
-    '''
-    # I named your file conf and stored it
-    # in the same directory as the script
 
     with open('config.properties') as f:
 
@@ -104,11 +145,14 @@ if __name__ == '__main__':
     types = keys['types'].split(',')
     files = keys['filePaths'].split(',')
     last_lines = np.zeros(len(files), dtype=object)
-    print(last_lines)
     a = Agent()
     while True:
         i = 0
         for file in files:
             last_lines[i] = a.send(file, types, last_lines[i])
             i = i + 1
-        time.sleep(5)
+        if platform.system() == "Windows":
+            fun()
+        else:
+            print("System is Linux")
+        time.sleep(10)
