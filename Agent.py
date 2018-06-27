@@ -195,6 +195,14 @@ def send_logs_to_firewall(file_name, types, last_lines,sock):
     return len(lines)
 
 
+
+def send_data_to_siem_center(keys):
+    request_url = "https://localhost:8443/agent/sendAgentData";
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    d = urllib.parse.urlencode(keys).encode("UTF-8")
+    urllib.request.urlopen(request_url, data=d, context=context)
+
+
 def make_client_connection(port_number):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -244,6 +252,8 @@ if __name__ == '__main__':
     ports = keys['ports']
     port = keys['port']
     last_lines = np.zeros(len(files), dtype=object)
+    batch = keys['batch']
+    send_data_to_siem_center(keys)
     a = Agent()
     sock = []
     addr = []
@@ -276,4 +286,4 @@ if __name__ == '__main__':
             for file in files:
                 send_logs_to_firewall(file,types, last_lines[i],sock)
                 i = i + 1
-        time.sleep(10)
+        time.sleep(batch)
