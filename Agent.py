@@ -8,6 +8,11 @@ import datetime, time
 from datetime import datetime
 import logging
 import platform
+import websocket
+import sys
+import time
+import threading
+
 
 logging.basicConfig(filename="OperatingSystem.log", level=logging.DEBUG,
                         format="%(id)s|%(asctime)s|%(ip)s|%(host)s|%(facility)s|%(levelname)s|%(tag)s|%(message)s")
@@ -197,7 +202,7 @@ def send_logs_to_firewall(file_name, types, last_lines,sock):
 
 
 def send_data_to_siem_center(keys):
-    request_url = "https://localhost:8443/agent/sendAgentData";
+    request_url = "https://localhost:8443/agent/sendAgentData"
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     d = urllib.parse.urlencode(keys).encode("UTF-8")
     urllib.request.urlopen(request_url, data=d, context=context)
@@ -229,10 +234,63 @@ def make_server_connection(port_number):
     return  (conn_obj ,addr)
 
 
+def on_message(ws,message):
+    print("Message")
+    print(message)
+
+def on_error(ws,error):
+    print("Error")
+    print(error)
+
+def on_close(ws):
+    print ('Closed')
+
+def on_open(ws):
+    print("Hello")
+    def run(*args):
+        while True:
+            time.sleep(5)
+            ws.send("Hello")
+            print("Radi")
+        time.sleep(1)
+        ws.close()
+    threading.start_new_thread(run,())
+
+
+
+def make_web_socket():
+ #   websocket.enableTrace(True)
+    try:
+        ws = websocket.create_connection("wss://localhost:8443/send/message",
+                                        sslopt={"cert_reqs": ssl.CERT_NONE})
+
+        #ws = websocket.WebSocketApp("wss://localhost:8443/send/message")
+       # ws.run_forever(sslopt={"check_hostname": False})
+
+       # ws = websocket.WebSocketApp("wss://localhost:8443/send/message")
+       # ws.run_forever(sslopt={"cert_reqs": ssl.CERT_NONE})
+        # ws = websocket.WebSocketApp("wss://localhost:8443/send/message",
+        #                             on_message = on_message,
+        #                             on_error = on_error,
+        #                             on_close = on_close)
+        #ws.run_forever(sslopt = {"cert_reqs": ssl.CERT_NONE})
+        ws.send("Hello ")
+    except Exception as ex:
+        print("exception: ", format(ex))
+    '''
+    ws = websocket.WebSocketApp("wss://localhost:8443/send/message",
+                                on_message = on_message,
+                                on_error = on_error,
+                                on_close = on_close)
+    '''
+#   ws.on_open = on_open
+#    ws.run_forever()
+
+
 if __name__ == '__main__':
     separator = "="
     keys = {}
-
+    make_web_socket()
     with open('config.properties') as f:
 
         for line in f:
