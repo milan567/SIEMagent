@@ -71,6 +71,9 @@ class Agent:
         context.load_verify_locations(capath='C:/Users/milan/Desktop/Salic/Bezbjednost/BS')
         d = urllib.parse.urlencode(data).encode("UTF-8")
         urllib.request.urlopen(request_url, data=d, context=context)
+        string = ad.read().decode('utf-8')
+        json_obj = json.loads(string)
+        return json_obj
 
     def send(self, file_name, types, last_lines,agent_name):
         logFile = open(file_name)
@@ -89,11 +92,11 @@ class Agent:
                     datetime_object = datetime.strptime(elements[1][:19], "%Y-%m-%d %H:%M:%S")
                     l = Log(elements[5],elements[7],datetime_object,socket.gethostbyname(socket.gethostname()),elements[3]
                             ,elements[4],elements[6],agent_name)
-                    self.send_post_request(l)
+                    ad = self.send_post_request(l)
                 else:
                     print("Not sending.")
                 index = index + 1
-        return len(lines)
+        return len(lines), ad
 
 
 
@@ -203,8 +206,6 @@ def receive_and_send_messages(conn_obj,addr,agent_name):
         conn_obj.send(msg_for_client)
         print("Message is sent from firewall")
         print(agent_data)
-        json_obj = json.loads(agent_data)
-        return json_obj
 
 
 def send_post_messages(log,sock):
@@ -312,6 +313,7 @@ if __name__ == '__main__':
             ad, bd = make_server_connection(eval(p))
             sock.append(ad)
             addr.append(bd)
+    json_object = None
     while True:
         i = 0
         print("AGENT DATA")
@@ -320,10 +322,19 @@ if __name__ == '__main__':
             print("Usao")
             for file in agentData.filePaths:
                 print("reading firewall files and send to server.")
-                last_lines[i] = a.send(file, agentData.types, last_lines[i],agentData.name)
+                last_lines[i], json_object = a.send(file, agentData.types, last_lines[i],agentData.name)
+                agentData.name = json_object['name']
+                agentData.filePaths = json_object['filePaths']
+                agentData.level = json_object['level']
+                agentData.batch = json_object['batch']
+                agentData.port = json_object['port']
+                agentData.ports = json_object['ports']
+                agentData.enabled = json_object['enabled']
+                agentData.role = json_object['role']
+                agentData.types = json_object['types']
                 i = i + 1
             for j in range(0,len(sock)):
-                json_object = receive_and_send_messages(sock[j],addr[j],agentData.name)
+                receive_and_send_messages(sock[j],addr[j],agentData.name)
                 print("CHECKING AGENT FIREWALL")
             if json_object != None:
                 print("JSON OBJECT CHANGED")
