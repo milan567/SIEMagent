@@ -70,15 +70,19 @@ class Agent:
         context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
         context.load_verify_locations(capath='C:/Users/milan/Desktop/Salic/Bezbjednost/BS')
         d = urllib.parse.urlencode(data).encode("UTF-8")
-        urllib.request.urlopen(request_url, data=d, context=context)
+        ad = urllib.request.urlopen(request_url, data=d, context=context)
         string = ad.read().decode('utf-8')
         json_obj = json.loads(string)
         return json_obj
 
     def send(self, file_name, types, last_lines,agent_name):
+        print("AGENT NAME")
+        print(agent_name)
+        print("AGENT NAME")
         logFile = open(file_name)
         lines = logFile.readlines()
         logFile.close()
+        ad = None
         if len(lines) == last_lines:
             print("Nothing to send.")
         else:
@@ -96,6 +100,8 @@ class Agent:
                 else:
                     print("Not sending.")
                 index = index + 1
+        print(ad)
+        print("AGENT DATA IN SEND")
         return len(lines), ad
 
 
@@ -248,7 +254,7 @@ def send_logs_to_firewall(file_name, types, last_lines,sock,agent_name):
             else:
                 print("Not sending.")
             index = index + 1
-    return agent_data
+    return len(lines) , agent_data
 
 
 
@@ -323,37 +329,27 @@ if __name__ == '__main__':
             for file in agentData.filePaths:
                 print("reading firewall files and send to server.")
                 last_lines[i], json_object = a.send(file, agentData.types, last_lines[i],agentData.name)
-                agentData.name = json_object['name']
-                agentData.filePaths = json_object['filePaths']
-                agentData.level = json_object['level']
-                agentData.batch = json_object['batch']
-                agentData.port = json_object['port']
-                agentData.ports = json_object['ports']
-                agentData.enabled = json_object['enabled']
-                agentData.role = json_object['role']
-                agentData.types = json_object['types']
+                if json_object != None:
+                    #agentData.name = json_object['name']
+                    agentData.filePaths = json_object['filePaths']
+                    agentData.level = json_object['level']
+                    agentData.batch = json_object['batch']
+                    agentData.port = json_object['port']
+                    agentData.ports = json_object['ports']
+                    agentData.enabled = json_object['enabled']
+                    agentData.role = json_object['role']
+                    agentData.types = json_object['types']
                 i = i + 1
             for j in range(0,len(sock)):
                 receive_and_send_messages(sock[j],addr[j],agentData.name)
                 print("CHECKING AGENT FIREWALL")
-            if json_object != None:
-                print("JSON OBJECT CHANGED")
-                agentData.name = json_object['name']
-                agentData.filePaths = json_object['filePaths']
-                agentData.level = json_object['level']
-                agentData.batch = json_object['batch']
-                agentData.port = json_object['port']
-                agentData.ports = json_object['ports']
-                agentData.enabled = json_object['enabled']
-                agentData.role = json_object['role']
-                agentData.types = json_object['types']
         else:
             if agentData.enabled == "TRUE":
                 if platform.system() == "Windows":
                     print("Reading os logs - OS")
                     json_object = fun(agentData.name)
                     if json_object != None:
-                        agentData.name = json_object['name']
+                        #agentData.name = json_object['name']
                         agentData.filePaths = json_object['filePaths']
                         agentData.level = json_object['level']
                         agentData.batch = json_object['batch']
@@ -365,9 +361,9 @@ if __name__ == '__main__':
                 else:
                     print("System is Linux")
             for file in agentData.filePaths:
-                json_object = send_logs_to_firewall(file,agentData.types, last_lines[i],sock,agentData.name)
+                last_lines[i], json_object = send_logs_to_firewall(file,agentData.types, last_lines[i],sock,agentData.name)
                 if json_object != None:
-                    agentData.name = json_object['name']
+                    #agentData.name = json_object['name']
                     agentData.filePaths = json_object['filePaths']
                     agentData.level = json_object['level']
                     agentData.batch = json_object['batch']
